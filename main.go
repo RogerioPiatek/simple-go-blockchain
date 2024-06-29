@@ -63,6 +63,13 @@ func isBlockValid(newBlock Block, oldBlock Block) bool {
 	return true
 }
 
+// Ensure that the most updated Node is used as the blockchain (most blocks)
+func replaceChain(newBlocks []Block) {
+	if len(newBlocks) > len(Blockchain) {
+		Blockchain = newBlocks
+	}
+}
+
 func main() {
 
 }

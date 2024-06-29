@@ -44,6 +44,25 @@ func generateBlock(oldBlock Block, BPM int) (Block, error) {
 	return newBlock, nil
 }
 
+// Validates if our block is valid, by comparing properties from both blocks (old and new Block)
+func isBlockValid(newBlock Block, oldBlock Block) bool {
+	//If they're not equal, our logic was broken somewhere
+	if oldBlock.Index+1 != newBlock.Index {
+		return false
+	}
+
+	if oldBlock.Hash != newBlock.PrevHash {
+		return false
+	}
+
+	if calculateHash(newBlock) != newBlock.Hash {
+		return false
+	}
+
+	//all the tests passed
+	return true
+}
+
 func main() {
 
 }

@@ -1,0 +1,10 @@
+
+### GET the Blocks of the Blockchain
+GET http://localhost:8080/ HTTP/1.1
+
+### POST a Block on our blockchain 
+POST http://localhost:8080/ HTTP/1.1
+
+{
+  "BPM": 73
+}

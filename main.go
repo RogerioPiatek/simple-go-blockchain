@@ -3,7 +3,14 @@ package main
 import (
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
+	"io"
+	"log"
+	"net/http"
+	"os"
 	"time"
+
+	"github.com/gorilla/mux"
 )
 
 // Data model to our block, containing the necessary fields like the PrevHash
@@ -68,6 +75,45 @@ func replaceChain(newBlocks []Block) {
 	if len(newBlocks) > len(Blockchain) {
 		Blockchain = newBlocks
 	}
+}
+
+// Runs the WebServer that will act as the frontend to our Blockchain
+func run() error {
+	mux := makeMuxRouter()
+	httpAddr := os.Getenv("ADDR")
+	log.Println("Listening on ", os.Getenv("ADDR"))
+	s := &http.Server{
+		Addr:           ":" + httpAddr,
+		Handler:        mux,
+		ReadTimeout:    10 * time.Second,
+		WriteTimeout:   10 * time.Second,
+		MaxHeaderBytes: 1 << 20,
+	}
+
+	if err := s.ListenAndServe(); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// Makes the router and returns it to be used on run()
+func makeMuxRouter() http.Handler {
+	muxRouter := mux.NewRouter()
+	muxRouter.HandleFunc("/", handleGetBlockChain).Methods("GET")
+	//muxRouter.HandleFunc("/", handleWriteBlockChain).Methods("POST")
+	return muxRouter
+}
+
+// Handles the GET requests and returns our Blockchain as JSON
+func handleGetBlockChain(w http.ResponseWriter, r *http.Request) {
+	bytes, err := json.MarshalIndent(Blockchain, "", "")
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	io.WriteString(w, string(bytes))
 }
 
 func main() {

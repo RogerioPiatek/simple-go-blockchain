@@ -10,6 +10,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/davecgh/go-spew/spew"
 	"github.com/gorilla/mux"
 )
 
@@ -80,10 +81,10 @@ func replaceChain(newBlocks []Block) {
 // Runs the WebServer that will act as the frontend to our Blockchain
 func run() error {
 	mux := makeMuxRouter()
-	httpAddr := os.Getenv("ADDR")
-	log.Println("Listening on ", os.Getenv("ADDR"))
+	httpPort := os.Getenv("PORT")
+	log.Println("Listening on ", httpPort)
 	s := &http.Server{
-		Addr:           ":" + httpAddr,
+		Addr:           ":" + httpPort,
 		Handler:        mux,
 		ReadTimeout:    10 * time.Second,
 		WriteTimeout:   10 * time.Second,
@@ -101,7 +102,7 @@ func run() error {
 func makeMuxRouter() http.Handler {
 	muxRouter := mux.NewRouter()
 	muxRouter.HandleFunc("/", handleGetBlockChain).Methods("GET")
-	//muxRouter.HandleFunc("/", handleWriteBlockChain).Methods("POST")
+	muxRouter.HandleFunc("/", handleWriteBlock).Methods("POST")
 	return muxRouter
 }
 
@@ -116,6 +117,50 @@ func handleGetBlockChain(w http.ResponseWriter, r *http.Request) {
 	io.WriteString(w, string(bytes))
 }
 
-func main() {
+// Holds our BPM value
+type Message struct {
+	BPM int
+}
 
+// Handles the creation of a new block, receiving the BPM on the request body
+func handleWriteBlock(w http.ResponseWriter, r *http.Request) {
+	var m Message
+
+	//decodes the body
+	decoder := json.NewDecoder(r.Body)
+	if err := decoder.Decode(&m); err != nil {
+		respondWithJson(w, r, http.StatusBadRequest, r.Body)
+		return
+	}
+	defer r.Body.Close()
+
+	//passes the last block (Blockchain[-1]) to generateBlock
+	newBlock, err := generateBlock(Blockchain[len(Blockchain)-1], m.BPM)
+	if err != nil {
+		respondWithJson(w, r, http.StatusInternalServerError, m)
+		return
+	}
+	if isBlockValid(newBlock, Blockchain[len(Blockchain)-1]) {
+		newBlockchain := append(Blockchain, newBlock)
+		replaceChain(newBlockchain)
+		spew.Dump(Blockchain)
+	}
+
+	respondWithJson(w, r, http.StatusCreated, newBlock)
+}
+
+// Receives an HTTP code and payload, if everything goes fine we write the payload as JSON to the response
+func respondWithJson(w http.ResponseWriter, r *http.Request, code int, payload interface{}) {
+	response, err := json.MarshalIndent(payload, "", "")
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write([]byte("HTTP 500: Internal Server Error"))
+		return
+	}
+
+	w.WriteHeader(code)
+	w.Write(response)
+}
+
+func main() {
 }
